@@ -1,0 +1,10 @@
+{
+	"database": {
+		"name": "bda",
+		"user": "test",
+		"password": "test",
+		"host": "127.0.0.1",
+		"port": 5432
+	},
+	"db_import_dir": "data"
+}
