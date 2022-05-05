@@ -86,3 +86,38 @@ class DatabaseHandler:
         block_datetime = datetime.datetime.fromtimestamp(block_timestamp, tz=datetime.timezone.utc)
 
         return block_height, block_datetime
+
+    def get_orders(self, order_limit):
+        select = f"""SELECT pi.id, ps.created_at
+        FROM product__stats ps
+        JOIN product__items pi on ps.product_id = pi.id
+        WHERE sales_delta != 0
+        LIMIT {order_limit};"""
+
+        orders = self.read(select)
+        return orders
+
+    def get_variants(self, product_id):
+        select = f"""SELECT pvi.id
+        FROM product__items pi
+        JOIN product__variant__items pvi on pi.id = pvi.product_id
+        WHERE pi.id = '{product_id}';"""
+
+        variants = self.read(select)
+        return variants
+
+    def get_price(self, variant_id, created_at):
+        """
+        :param variant_id:
+        :param created_at:
+        :return: Price of the variant in the time at satoshi.
+        """
+        sats_in_btc = 100_000_000
+        select = f"""SELECT btc
+        FROM product__variant__prices
+        WHERE variant_id = '{variant_id}' AND created_at > '{created_at}'
+        ORDER BY created_at
+        LIMIT 1;"""
+
+        price = int(self.read(select)[0][0] * sats_in_btc)
+        return price

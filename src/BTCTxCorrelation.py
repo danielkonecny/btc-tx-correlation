@@ -5,20 +5,34 @@ Author: Daniel Konecny (xkonec75)
 Date: 05. 05. 2022
 """
 
-import pprint
 import time
 
 from src.ArgumentParser import parse_arguments
 from src.DatabaseHandler import DatabaseHandler
 from src.BlockchainHandler import BlockchainHandler
+from src.CorrelationAnalyser import analyse_txs
+from src.DataExporter import DataExporter
 
 
 def create_block_height_datetime_table(
         database: DatabaseHandler,
         blockchain: BlockchainHandler,
-        start_block_height: int,
-        end_block_height: int
+        full_blockchain: bool = False
 ):
+    """
+    Fill auxiliary table for obtaining block times.
+    :param database:
+    :param blockchain:
+    :param full_blockchain: Optionally download the whole blockchain (very slow).
+    :return:
+    """
+    start_block_height = 0
+    end_block_height = blockchain.get_best_height()
+    if not full_blockchain:
+        # Blocks that should contain transactions from dataset with padding on both sides just to be sure.
+        start_block_height = 677001
+        end_block_height = 708200
+
     database.create_block_height_time_table()
 
     current_height = database.get_height_from_table()
@@ -43,8 +57,39 @@ def create_block_height_datetime_table(
                 block_info = []
 
 
+def correlate(database, blockchain, product_id, order_time, minutes_back=60, minutes_to_future=24 * 60):
+    """
+    Demonstration of correlation on a subset of orders.
+    :param database:
+    :param blockchain:
+    :param product_id:
+    :param order_time:
+    :param minutes_back: Because of inconsistency of block timestamps, 1 hour in the past just to be sure.
+    :param minutes_to_future: Search blocks one day to the future for the transaction.
+    :return:
+    """
+    evaluation = []
+
+    variants = database.get_variants(product_id)
+    start_block_height, _ = database.block_height_datetime_at_datetime(order_time, -minutes_back)
+    end_block_height, _ = database.block_height_datetime_at_datetime(order_time, minutes_to_future)
+    txs = blockchain.get_txs_from_range(start_block_height, end_block_height)
+
+    for variant in variants:
+        price = database.get_price(variant[0], order_time)
+        order_dict = {
+            'product_id': product_id,
+            'ordered_at': order_time,
+            'variant_id': variant[0],
+            'btc_price': price
+        }
+        evaluation += analyse_txs(order_dict, txs)
+
+    return evaluation
+
+
 def main():
-    config = parse_arguments()
+    config, args = parse_arguments()
     database = DatabaseHandler(
         config['database']['name'],
         config['database']['user'],
@@ -53,47 +98,25 @@ def main():
         config['database']['port']
     )
     blockchain = BlockchainHandler()
+    data_exporter = DataExporter('export.csv')
 
-    # Fill auxiliary table for obtaining block times.
-    start_height = 0
-    end_height = blockchain.get_best_height()
-    if not config['full_blockchain']:
-        # Blocks that should contain transactions from dataset with padding on both sides just to be sure.
-        start_height = 677001
-        end_height = 708200
-    create_block_height_datetime_table(database, blockchain, start_height, end_height)
+    create_block_height_datetime_table(database, blockchain, config['full_blockchain'])
 
-    select = """
-    SELECT
-    ps.created_at AS ordered_at,
-    pi.name AS product,
-    pvi.name AS variant,
-    ps.sales_delta * pvp.btc AS btc_price,
-    ps.sales_delta * pvp.usd AS usd_price
-FROM product__stats AS ps
-JOIN product__items AS pi ON ps.product_id = pi.id
-JOIN product__variant__items AS pvi on pi.id = pvi.product_id
-JOIN product__variant__prices AS pvp on pvi.id = pvp.variant_id
-WHERE ps.sales_delta != 0
-LIMIT 1;
-"""
+    if args.order_count > 0:
+        orders = database.get_orders(args.order_count)
 
-    results = database.read(select)
+        evaluation = []
+        for product_id, order_time in orders:
+            evaluation += correlate(database, blockchain, product_id, order_time, 60, 24 * 60)
 
-    order = {
-        'ordered_at': results[0][0],
-        'btc_price': results[0][3]
-    }
+        # data_exporter.export_data(evaluation)
+        data_exporter.print_data(evaluation)
 
-    # minutes_back = -60  # Because of inconsistency of block timestamps, 1 hour in the past just to be sure.
-    minutes_back = 0
-    start_block_height, _ = database.block_height_datetime_at_datetime(order['ordered_at'], minutes_back)
-    # minutes_to_future = 24 * 60  # Search blocks one day to the future for the transaction.
-    minutes_to_future = 0
-    end_block_height, _ = database.block_height_datetime_at_datetime(order['ordered_at'], minutes_to_future)
+    elif args.product_id != "" and args.order_time != "":
+        evaluation = correlate(database, blockchain, args.product_id, args.order_time, 60, 24 * 60)
 
-    txs = blockchain.get_txs_from_range(start_block_height, end_block_height)
-    pprint.pprint(txs)
+        # data_exporter.export_data(evaluation)
+        data_exporter.print_data(evaluation)
 
 
 if __name__ == "__main__":

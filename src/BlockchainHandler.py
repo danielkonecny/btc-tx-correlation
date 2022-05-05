@@ -19,8 +19,6 @@ class BlockchainHandler:
         :param last_block: Transactions from last block are also included.
         :return:
         """
-        print(f"Transactions from range of blocks: {first_block}-{last_block}.")
-
         txs = []
 
         for block_height in range(first_block, last_block + 1):
