@@ -77,13 +77,14 @@ def correlate(database, blockchain, product_id, order_time, minutes_back=60, min
 
     for variant in variants:
         price = database.get_price(variant[0], order_time)
-        order_dict = {
-            'product_id': product_id,
-            'ordered_at': order_time,
-            'variant_id': variant[0],
-            'btc_price': price
-        }
-        evaluation += analyse_txs(order_dict, txs)
+        if price is not None:
+            order_dict = {
+                'product_id': product_id,
+                'ordered_at': order_time,
+                'variant_id': variant[0],
+                'btc_price': price
+            }
+            evaluation += analyse_txs(order_dict, txs)
 
     return evaluation
 
@@ -112,7 +113,7 @@ def main():
         # data_exporter.export_data(evaluation)
         data_exporter.print_data(evaluation)
 
-    elif args.product_id != "" and args.order_time != "":
+    else:
         evaluation = correlate(database, blockchain, args.product_id, args.order_time, 60, 24 * 60)
 
         # data_exporter.export_data(evaluation)

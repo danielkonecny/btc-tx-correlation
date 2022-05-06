@@ -58,7 +58,7 @@ def analyse_txs(order, txs):
             price_diff = int(output['value']) - order['btc_price']
             heuristics = time_diff.seconds // 60
 
-            if 0 < price_diff < price_diff_thresh:
+            if 0 <= price_diff < price_diff_thresh:
                 evaluation.append({
                     'product_id': order['product_id'],
                     'variant_id': order['variant_id'],

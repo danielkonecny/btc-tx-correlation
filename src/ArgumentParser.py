@@ -27,8 +27,8 @@ def parse_arguments():
     )
     parser.add_argument('config', type=str, help='Location of the configuration file.')
     parser.add_argument('--order_count', type=int, default=0, help='Number of orders to correlate.')
-    parser.add_argument('--product_id', type=str, default="")
-    parser.add_argument('--order_time', type=str, default="",
+    parser.add_argument('--product_id', type=str, default="6143260f-4637-5c33-9d80-af97233fb7ff")
+    parser.add_argument('--order_time', type=str, default="2021-10-14T16:03:55.693+00:00",
                         help='Format for example: 2021-10-14T16:03:55.693+00:00')
 
     args = parser.parse_args()

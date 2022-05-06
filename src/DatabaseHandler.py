@@ -119,5 +119,9 @@ class DatabaseHandler:
         ORDER BY created_at
         LIMIT 1;"""
 
-        price = int(self.read(select)[0][0] * sats_in_btc)
+        prices = self.read(select)
+        if len(prices) > 0:
+            price = int(prices[0][0] * sats_in_btc)
+        else:
+            price = None
         return price

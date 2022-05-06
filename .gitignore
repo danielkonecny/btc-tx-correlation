@@ -1,5 +1,8 @@
 # Project ignores
-data/
+data/*.csv
+data/*.sql
+!data/block__height__datetime.csv
+!data/block__height__datetime.sql
 
 # JetBrains ignores
 .idea/
